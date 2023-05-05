@@ -15,21 +15,24 @@ library("dplyr")
 library("ggplot2")
 ```
 
-
 ## Preparation: import data
+
 ```{r}
 wildschwein <- read_csv("data/wildschwein_BE_2056.csv")
 wildschwein
 ```
 
-Extract Sabi:  
+Extract Sabi:
+
+! specific timezone otherwise, just text we might have difference because of it, and issue with summer and winter time.
+
 ```{r}
 #number of animals:
 wildschwein$TierName %>% unique()
 
 #extract sabi:
 sabi <- wildschwein %>% filter(TierName == "Sabi") %>%
-  filter(DatetimeUTC >= "2015-07-01", DatetimeUTC < "2015-07-03")
+  filter(DatetimeUTC >= as.POSIXct("2015-07-01", tz = "UTC"), DatetimeUTC < as.POSIXct("2015-07-03", tz = "UTC"))
 ```
 
 ```{r}
@@ -40,12 +43,8 @@ ggplot(sabi, aes(E,N, color = DatetimeUTC)) +
   coord_equal() #so equally space North and East
 ```
 
-```{r}
-
-```
-
-
 ## Step a) specify a temporal window
+
 ```{r}
 #visualise:
 sabi %>% head(50) %>% 
@@ -53,6 +52,85 @@ sabi %>% head(50) %>%
   geom_point()
 ```
 
+Temporal window of 60 minutes: 4 fixes\
+pos[n-2] to pos[n]\
+pos[n-1] to pos[n]\
+pos[n] to pos[n+1]\
+pos[n] to pos[n+2]
+
+```{r}
+sabi <- sabi %>%
+  mutate(
+    n_plus1 = sqrt((lead(E)-E)^2 + (lead(N)-N)^2), #from n to n+1
+    n_plus2 = sqrt((lead(E, 2)-E)^2 + (lead(N, 2)-N)^2), #from n to n+2
+    n_minus1 = sqrt((lag(E, 1)-E)^2 + (lag(N, 1)-N)^2), #from n to n-1
+    n_minus2 = sqrt((lag(E, 2)-E)^2 + (lag(N, 2)-N)^2) #from n to n-2
+  )
+#reminder:
+#lead() = next value of E
+#lag() = opposite of lead()
+#numbers <- 1:10
+#lead(numbers, n = 2) #discard first 2
+#lag(numbers, n = 5) #discard last 5
+
+sabi
+```
+
+## Step b) Measure the distance from every point to every otehr point within this temporal window
+Important to specify na.rm in the mean function,  otherwise na values interfer.  
+
+```{r}
+sabi <- sabi |> 
+  rowwise() |> #group by row with rowwise(), otherwise the mutates give one result for everything
+  mutate(
+    stepMean = mean(c(n_minus1, n_minus2, n_plus1, n_plus2), na.rm = TRUE) 
+  ) |> 
+  ungroup() #to ungroup rowwise()
+```
+
+## Step c) Remove “static points"
+Determines a threshold where we consider our animal not to be moving.  
+
+Check if we could use the mean as the threshold:  
+```{r}
+ggplot(sabi, aes(stepMean)) +
+  geom_histogram(binwidth = 10) +
+  geom_vline(xintercept = mean(sabi$stepMean, na.rm = TRUE))
+```
+
+Use the mean as a threshold:  
+```{r}
+sabi |> 
+  mutate(static = stepMean < mean(stepMean, na.rm = TRUE)) |> 
+  ggplot(aes(E, N)) +
+  geom_path() +
+  geom_point(aes(color = static)) + # color of points show if the points are statics or not
+  coord_fixed()
+```
+
+```{r}
+# filter sabi data
+sabi <- sabi |> 
+  mutate(static = stepMean < mean(stepMean, na.rm = TRUE)) 
+
+sabi_filter <- sabi |>
+    filter(!static)
+
+#plot
+sabi_filter |>
+    ggplot(aes(E, N)) +
+    geom_path() +
+    geom_point() +
+    coord_fixed() +
+    theme(legend.position = "bottom")
+```
 
 
 
+
+https://bookdown.org/yihui/rmarkdown-cookbook/rstudio-shortcuts.html
+ctrl shift m -> insert pipe
+ctrl alt i -> insert chunk
+ctrl shift + -> zoom
+alt tiret -> <- 
+ctrl alt c -> run current chunk
