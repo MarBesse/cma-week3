@@ -1,0 +1,16 @@
+---
+title: "cma-week3"
+author: "Martine Besse"
+date: "2023-05-05"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Initialise document
+```{r}
+
+```
+
