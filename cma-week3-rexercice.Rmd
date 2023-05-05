@@ -9,8 +9,50 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-# Initialise document
+```{r}
+library("readr")
+library("dplyr")
+library("ggplot2")
+```
+
+
+## Preparation: import data
+```{r}
+wildschwein <- read_csv("data/wildschwein_BE_2056.csv")
+wildschwein
+```
+
+Extract Sabi:  
+```{r}
+#number of animals:
+wildschwein$TierName %>% unique()
+
+#extract sabi:
+sabi <- wildschwein %>% filter(TierName == "Sabi") %>%
+  filter(DatetimeUTC >= "2015-07-01", DatetimeUTC < "2015-07-03")
+```
+
+```{r}
+#plot sabi trajectories
+ggplot(sabi, aes(E,N, color = DatetimeUTC)) +
+  geom_point() +
+  geom_path() +
+  coord_equal() #so equally space North and East
+```
+
 ```{r}
 
 ```
+
+
+## Step a) specify a temporal window
+```{r}
+#visualise:
+sabi %>% head(50) %>% 
+  ggplot(aes(DatetimeUTC, 1)) +
+  geom_point()
+```
+
+
+
 
