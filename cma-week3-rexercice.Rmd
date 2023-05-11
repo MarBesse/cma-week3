@@ -162,11 +162,136 @@ posmo_filter <- posmo |>
 posmo_filter
 ```
 
+```{r}
+#plot trajectories
+ggplot(posmo_filter, aes(X,Y, color = datetime)) +
+  geom_point() +
+  geom_path() +
+  coord_equal() #so equally space North and East
+```
+
+
+Add useful attributes:  
+```{r}
+#timelag
+posmo_filter <- mutate(posmo_filter, timelag = as.numeric(difftime(lead(datetime), datetime)))
+
+#steplength
+posmo_filter <- posmo_filter %>% mutate(steplength_m = sqrt((X-lead(X))^2 + (Y-lead(Y))^2))
+
+#speed
+posmo_filter <- posmo_filter %>% mutate(speed_ms = steplength_m/timelag)
+```
 
 
 ## Task 1: Segmentation
 
+### Step a) specify a temporal window
+The timelag is of 9 seconds excepted when error of recording.  
+So a temporal window of 60 minutes will give us ~6 fixes.
+```{r}
+#visualise:
+posmo_filter %>% head(50) %>% 
+  ggplot(aes(datetime, 1)) +
+  geom_point()
+```
+
+Temporal window of 60 minutes: 6 fixes
+pos[n-3] to pos[n]  # distance to pos -27 seconds
+pos[n-2] to pos[n]  # distance to pos -18 seconds
+pos[n-1] to pos[n]  # distance to pos -9 seconds
+pos[n] to pos[n+1]  # distance to pos +9 seconds
+pos[n] to pos[n+2]  # distance to pos +18 seconds
+pos[n] to pos[n+3]  # distance to pos +27 seconds
+
+```{r}
+posmo_filter <- posmo_filter %>%
+  mutate(
+    n_plus1 = sqrt((lead(X)-X)^2 + (lead(Y)-Y)^2), #from n to n+1
+    n_plus2 = sqrt((lead(X, 2)-X)^2 + (lead(Y, 2)-Y)^2), #from n to n+2
+    n_plus3 = sqrt((lead(X, 3)-X)^2 + (lead(Y, 3)-Y)^2), #from n to n+3
+    n_minus1 = sqrt((lag(X, 1)-X)^2 + (lag(Y, 1)-Y)^2), #from n to n-1
+    n_minus2 = sqrt((lag(X, 2)-X)^2 + (lag(Y, 2)-Y)^2), #from n to n-2
+    n_minus3 = sqrt((lag(X, 3)-X)^2 + (lag(Y, 3)-Y)^2) #from n to n-3
+  )
+
+posmo_filter
+```
+
+# ```{r}
+# posmo_filter <- posmo_filter %>%
+#   mutate(
+#     n_plus1 = sqrt((lead(X, 2)-X)^2 + (lead(Y, 2)-Y)^2), #from n to n+1
+#     n_plus2 = sqrt((lead(X, 4)-X)^2 + (lead(Y, 4)-Y)^2), #from n to n+2
+#     n_plus3 = sqrt((lead(X, 6)-X)^2 + (lead(Y, 6)-Y)^2), #from n to n+3
+#     n_minus1 = sqrt((lag(X, 1)-X)^2 + (lag(Y, 1)-Y)^2), #from n to n-1
+#     n_minus2 = sqrt((lag(X, 4)-X)^2 + (lag(Y, 4)-Y)^2), #from n to n-2
+#     n_minus3 = sqrt((lag(X, 6)-X)^2 + (lag(Y, 6)-Y)^2) #from n to n-3
+#   )
+# 
+# posmo_filter
+# ```
+
+### Step b) Measure the distance from every point to every other point within this temporal window
+Important to specify na.rm in the mean function,  otherwise na values interfer.  
+
+```{r}
+posmo_filter <- posmo_filter |> 
+  rowwise() |> #group by row with rowwise(), otherwise the mutates give one result for everything
+  mutate(
+    stepMean = mean(c(n_minus1, n_minus2, n_minus3, n_plus1, n_plus2, n_plus3), na.rm = TRUE) 
+  ) |> 
+  ungroup() #to ungroup rowwise()
+```
+
+### Step c) Remove “static points"
+Determines a threshold where we consider we are not moving.  
+
+Check if we could use the mean as the threshold:  
+```{r}
+ggplot(posmo_filter, aes(stepMean)) +
+  geom_histogram(binwidth = 10) +
+  geom_vline(xintercept = mean(posmo_filter$stepMean, na.rm = TRUE)) +
+  geom_vline(xintercept = median(posmo_filter$stepMean, na.rm = TRUE), color='blue')
+  
+```
+
+It seems the mean `r mean(posmo_filter$stepMean, na.rm = TRUE)` neither the median  `r median(posmo_filter$stepMean, na.rm = TRUE)` are really adequate.
+
+```{r}
+posmo_filter |> 
+  mutate(static = stepMean < mean(posmo_filter$stepMean, na.rm = TRUE)) |> 
+  ggplot(aes(X, Y)) +
+  geom_path() +
+  geom_point(aes(color = static)) + # color of points show if the points are statics or not
+  coord_fixed()
+```
+
+
+```{r}
+# filter stops data
+posmo_filter <- posmo_filter |> 
+  mutate(static = stepMean < mean(stepMean, na.rm = TRUE)) 
+
+posmo_filter_filter <- posmo_filter |>
+    filter(!static)
+
+#plot
+posmo_filter_filter |>
+    ggplot(aes(X, Y)) +
+    geom_path() +
+    geom_point() +
+    coord_fixed() +
+    theme(legend.position = "bottom")
+```
+
+I am not satisfied by this result as a lot of trajectories have also been removed, but after a few trials, it seems lower threshold do not permit to remove entirely the static data.
+
 ## Task 2: Specify and apply threshold d
+Explore stepMean using summary statistics:  
+```{r}
+summary(posmo_filter_filter$stepMean)
+```
 
 ## Task 3: Visualize segmented trajectories
 
