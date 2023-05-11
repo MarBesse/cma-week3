@@ -292,6 +292,22 @@ posmo_filter %>%
 ```
 
 ## Task 5: Similarity measures
+Import csv:  
+```{r}
+pedestrian <- read_csv("data/pedestrian.csv")
+pedestrian
+```
+
+```{r}
+
+pedestrian %>% 
+  ggplot(aes(E, N)) +
+  geom_path() +
+  geom_point(aes(color = TrajID)) +
+  coord_fixed() +
+  facet_wrap("TrajID")
+```
+
 
 ## Task 6: Calculate similarity
 
