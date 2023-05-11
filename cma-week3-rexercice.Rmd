@@ -308,6 +308,33 @@ pedestrian %>%
   facet_wrap("TrajID")
 ```
 
+The most similar trajectories seem to be:  1 and 6.
+And the most dissimilar seem to be 4 and 5.
 
 ## Task 6: Calculate similarity
+```{r}
+library("SimilarityMeasures")
+traj1 <- pedestrian |> filter(TrajID == 1)
+
+#matrix traj1:
+m <- nrow(traj1)
+n <- 2 #2D
+traj1_matrix <- matrix(NA, nrow = m, ncol = n)
+
+traj1_matrix[, 1] <- traj1$E
+traj1_matrix[, 2] <- traj1$N
+
+#matrix traj6:
+traj6_matrix <- matrix(NA, nrow = m, ncol = n)
+
+traj6_matrix[, 1] <- traj1$E
+traj6_matrix[, 2] <- traj1$N
+
+
+```
+
+```{r}
+#DTW
+DTW(traj1_matrix, traj6_matrix)
+```
 
