@@ -218,20 +218,6 @@ posmo_filter <- posmo_filter %>%
 posmo_filter
 ```
 
-# ```{r}
-# posmo_filter <- posmo_filter %>%
-#   mutate(
-#     n_plus1 = sqrt((lead(X, 2)-X)^2 + (lead(Y, 2)-Y)^2), #from n to n+1
-#     n_plus2 = sqrt((lead(X, 4)-X)^2 + (lead(Y, 4)-Y)^2), #from n to n+2
-#     n_plus3 = sqrt((lead(X, 6)-X)^2 + (lead(Y, 6)-Y)^2), #from n to n+3
-#     n_minus1 = sqrt((lag(X, 1)-X)^2 + (lag(Y, 1)-Y)^2), #from n to n-1
-#     n_minus2 = sqrt((lag(X, 4)-X)^2 + (lag(Y, 4)-Y)^2), #from n to n-2
-#     n_minus3 = sqrt((lag(X, 6)-X)^2 + (lag(Y, 6)-Y)^2) #from n to n-3
-#   )
-# 
-# posmo_filter
-# ```
-
 ### Step b) Measure the distance from every point to every other point within this temporal window
 Important to specify na.rm in the mean function,  otherwise na values interfer.  
 
@@ -242,6 +228,12 @@ posmo_filter <- posmo_filter |>
     stepMean = mean(c(n_minus1, n_minus2, n_minus3, n_plus1, n_plus2, n_plus3), na.rm = TRUE) 
   ) |> 
   ungroup() #to ungroup rowwise()
+```
+
+## Task 2: Specify and apply threshold d
+Explore stepMean using summary statistics:  
+```{r}
+summary(posmo_filter$stepMean)
 ```
 
 ### Step c) Remove “static points"
@@ -258,44 +250,46 @@ ggplot(posmo_filter, aes(stepMean)) +
 
 It seems the mean `r mean(posmo_filter$stepMean, na.rm = TRUE)` neither the median  `r median(posmo_filter$stepMean, na.rm = TRUE)` are really adequate.
 
+
+## Task 3: Visualize segmented trajectories
+
 ```{r}
-posmo_filter |> 
-  mutate(static = stepMean < mean(posmo_filter$stepMean, na.rm = TRUE)) |> 
+posmo_filter <- posmo_filter |> 
+  mutate(static = stepMean < mean(posmo_filter$stepMean, na.rm = TRUE))
+
+posmo_filter %>% 
   ggplot(aes(X, Y)) +
   geom_path() +
   geom_point(aes(color = static)) + # color of points show if the points are statics or not
   coord_fixed()
 ```
 
-
-```{r}
-# filter stops data
-posmo_filter <- posmo_filter |> 
-  mutate(static = stepMean < mean(stepMean, na.rm = TRUE)) 
-
-posmo_filter_filter <- posmo_filter |>
-    filter(!static)
-
-#plot
-posmo_filter_filter |>
-    ggplot(aes(X, Y)) +
-    geom_path() +
-    geom_point() +
-    coord_fixed() +
-    theme(legend.position = "bottom")
-```
-
-I am not satisfied by this result as a lot of trajectories have also been removed, but after a few trials, it seems lower threshold do not permit to remove entirely the static data.
-
-## Task 2: Specify and apply threshold d
-Explore stepMean using summary statistics:  
-```{r}
-summary(posmo_filter_filter$stepMean)
-```
-
-## Task 3: Visualize segmented trajectories
+I am not satisfied by this result as a lot of trajectories have also been removed, but after a few trials, it seems lower threshold do not permit to remove entirely the static data.  
 
 ## Task 4: Segment-based analysis
+Assign unic ids:  
+```{r}
+rle_id <- function(vec) {
+    x <- rle(vec)$lengths
+    as.factor(rep(seq_along(x), times = x))
+}
+```
+
+```{r}
+posmo_filter <- posmo_filter |>
+    mutate(segment_id = rle_id(static))
+
+head(posmo_filter)
+```
+
+Plot:  
+```{r}
+posmo_filter %>% 
+  ggplot(aes(X, Y)) +
+  geom_path() +
+  geom_point(aes(color = segment_id)) +
+  coord_fixed()
+```
 
 ## Task 5: Similarity measures
 
