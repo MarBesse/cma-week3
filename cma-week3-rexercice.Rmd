@@ -314,27 +314,110 @@ And the most dissimilar seem to be 4 and 5.
 ## Task 6: Calculate similarity
 ```{r}
 library("SimilarityMeasures")
-traj1 <- pedestrian |> filter(TrajID == 1)
 
-#matrix traj1:
-m <- nrow(traj1)
-n <- 2 #2D
-traj1_matrix <- matrix(NA, nrow = m, ncol = n)
+traj2matrix <- function (data, traj_id) {
+  
+  traj <- data |> filter(TrajID == traj_id)
+  
+  #matrix
+  m <- nrow(traj)
+  n <- 2 #2D
+  matrix <- matrix(NA, nrow = m, ncol = n)
+  
+  matrix[, 1] <- traj$E
+  matrix[, 2] <- traj$N
 
-traj1_matrix[, 1] <- traj1$E
-traj1_matrix[, 2] <- traj1$N
+  return (matrix)
+}
 
-#matrix traj6:
-traj6_matrix <- matrix(NA, nrow = m, ncol = n)
+#matrix
+traj1 <- traj2matrix(pedestrian, 1)
+traj2 <- traj2matrix(pedestrian, 2)
+traj3 <- traj2matrix(pedestrian, 3)
+traj4 <- traj2matrix(pedestrian, 4)
+traj5 <- traj2matrix(pedestrian, 5)
+traj6 <- traj2matrix(pedestrian, 6)
+```
 
-traj6_matrix[, 1] <- traj1$E
-traj6_matrix[, 2] <- traj1$N
+```{r}
+calculateDTW <- function (traj1, trajs) {
+  res <- list()
+  
+  for (traj in trajs) {
+    res0 <- DTW(traj1, traj)
+    res <- append(res, res0)
+  }
+  res <- res |> unlist()
 
+  barplot(res, 
+          main = "DTW",
+          xlab = "Trajectories",
+          ylab = "Value",
+          names.arg = list(2,3,4,5,6)
+  )
+
+}
+
+calculateEditDist <- function (traj1, trajs) {
+  res <- list()
+  
+  for (traj in trajs) {
+    res0 <- EditDist(traj1, traj)
+    res <- append(res, res0)
+  }
+  res <- res |> unlist()
+
+  barplot(res, 
+          main = "EditDist",
+          xlab = "Trajectories",
+          ylab = "Value",
+          names.arg = list(2,3,4,5,6)
+  )
+}
+
+
+calculateFrechet <- function (traj1, trajs) {
+  res <- list()
+  
+  for (traj in trajs) {
+    res0 <- Frechet(traj1, traj)
+    res <- append(res, res0)
+  }
+  res <- res |> unlist()
+
+  barplot(res, 
+          main = "Frechet",
+          xlab = "Trajectories",
+          ylab = "Distance",
+          names.arg = list(2,3,4,5,6)
+  )
+}
+
+calculateLCSS <- function (traj1, trajs) {
+  res <- list()
+  
+  for (traj in trajs) {
+    res0 <- LCSS(traj1, traj, pointSpacing = 5,pointDistance = 10, errorMarg = 5)
+    res <- append(res, res0)
+  }
+  res <- res |> unlist()
+
+  barplot(res, 
+          main = "LCSS",
+          xlab = "Trajectories",
+          ylab = "Distance",
+          names.arg = list(2,3,4,5,6)
+  )
+}
 
 ```
 
 ```{r}
-#DTW
-DTW(traj1_matrix, traj6_matrix)
+calculateDTW(traj1, list(traj2, traj3, traj4, traj5, traj6))
+calculateEditDist(traj1, list(traj2, traj3, traj4, traj5, traj6))
+calculateFrechet(traj1, list(traj2, traj3, traj4, traj5, traj6))
+calculateLCSS(traj1, list(traj2, traj3, traj4, traj5, traj6))
 ```
+
+I somehow don't have the same results as in the example, I am not sure what are the reasons of that.
 
